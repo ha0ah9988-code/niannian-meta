@@ -9,7 +9,7 @@ import sys
 import threading
 from typing import Optional
 
-from core.llm import BaseLLM
+from core.providers.base import BaseProvider, ProviderError
 from core.tools import ToolRegistry
 from evolution.memory import Memory
 
@@ -122,9 +122,9 @@ class Agent:
     可通过适配器接管 on_ask / on_tool_progress 回调。
     """
 
-    def __init__(self, llm: BaseLLM, tools: ToolRegistry,
+    def __init__(self, provider: BaseProvider, tools: ToolRegistry,
                  memory: Memory, identity_prompt: str):
-        self.llm = llm
+        self.provider = provider
         self.tools = tools
         self.memory = memory
         self.identity_prompt = identity_prompt
@@ -245,7 +245,7 @@ class Agent:
                 if not self._budget.consume():
                     return None
 
-                return self.llm.chat(
+                return self.provider.chat(
                     messages=messages,
                     tools=self.tools.to_openai_tools(),
                 )
@@ -257,7 +257,7 @@ class Agent:
                 # 格式错误：去掉工具再试
                 if category == ErrorCategory.FORMAT and attempt == 0:
                     try:
-                        return self.llm.chat(messages=messages)
+                        return self.provider.chat(messages=messages)
                     except Exception as e2:
                         last_error = e2
                         return None

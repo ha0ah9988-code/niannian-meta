@@ -28,19 +28,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def create_agent():
     """创建并返回一个配置完成的 Agent 实例"""
-    from core.llm import OpenAICompatibleLLM
+    from core import setup_providers
     from core.tools import ToolRegistry, register_atomic_tools
     from core.loop import Agent
     from core import build_identity_prompt
     from evolution.memory import Memory
 
-    llm = OpenAICompatibleLLM()
+    registry = setup_providers()
+    provider = registry.default
     tools = ToolRegistry()
     register_atomic_tools(tools)
     memory = Memory()
     identity = build_identity_prompt()
 
-    return Agent(llm=llm, tools=tools, memory=memory,
+    return Agent(provider=provider, tools=tools, memory=memory,
                  identity_prompt=identity)
 
 
