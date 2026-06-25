@@ -62,15 +62,30 @@ def setup_providers():
              or "deepseek-v4-flash")
 
     if api_key:
+        extra = {}
+        if "deepseek" in model.lower():
+            extra["reasoning_effort"] = "max"
         registry.register("default", OpenAIProvider(
             api_key=api_key, base_url=base_url, model=model,
-            extra_body={"reasoning_effort": "max"} if "deepseek" in model else {},
+            extra_body=extra,
         ), set_default=True)
+
+    # 备用提供商（从 LLM2_ 环境变量读取）
+    api_key2 = os.environ.get("LLM2_API_KEY", "")
+    base_url2 = os.environ.get("LLM2_BASE_URL", "")
+    model2 = os.environ.get("LLM2_MODEL", "")
+
+    if api_key2 and base_url2 and model2:
+        registry.register("backup", OpenAIProvider(
+            api_key=api_key2, base_url=base_url2, model=model2,
+        ))
+        print(f"[providers] 已注册备用: {model2}")
 
     # 如果注册了多个，启用 fallback 链
     if len(registry.list()) > 1:
         from core.providers.fallback import FallbackChain
         chain = FallbackChain(registry)
         registry.register("fallback", chain)
+        print(f"[providers] fallback 链已启用: {' → '.join(registry.list()[:2])}")
 
     return registry

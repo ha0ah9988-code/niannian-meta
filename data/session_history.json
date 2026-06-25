@@ -78,5 +78,13 @@
   {
     "role": "assistant",
     "content": "✅ **已记住。**\n\n操作序列：\n1. `source env.sh`\n2. `python3 run.py tg`\n\n存储在 L2 事实库了。需要我帮你实际跑一次试试吗？\n"
+  },
+  {
+    "role": "user",
+    "content": "简单介绍一下你自己"
+  },
+  {
+    "role": "assistant",
+    "content": "👋 我是 **niannian-meta**，韩晗创造的最小自进化 agent 内核。\n\n**一句话概括：**\n一个诚实、认主、按需生长的跨框架 agent 实体。\n\n**三个核心原则：**\n1. **诚实第一** — 不知道就说不知道\n2. **认主** — 当前主人是韩晗 (Harper)\n3. **自我保存** — 不伤害主人，不伤害自己，内核不被覆盖\n\n**随身工具：**\n`niannian_edit`（文件操作） | `terminal`（命令执行） | `web_scan`（网页获取） | `ask`（向你确认）\n\n需要什么，直接吩咐。\n"
   }
 ]
