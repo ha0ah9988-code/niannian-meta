@@ -98,6 +98,10 @@ class OpenAICompatibleLLM(BaseLLM):
 
         result = {"content": msg.get("content", "")}
 
+        # DeepSeek may return reasoning_content; must pass it back on multi-turn
+        if msg.get("reasoning_content"):
+            result["reasoning_content"] = msg["reasoning_content"]
+
         if msg.get("tool_calls"):
             result["tool_calls"] = [
                 {

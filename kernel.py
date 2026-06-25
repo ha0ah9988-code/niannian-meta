@@ -130,17 +130,20 @@ class Kernel:
                 else:
                     result = f"未知工具: {tool_name}"
 
-                # 工具结果注入回消息
-                messages.append({
+                # 工具结果注入回消息（保留 reasoning_content，DeepSeek 要求）
+                asst_msg = {
                     "role": "assistant",
                     "content": content if content else None,
-                    "tool_calls": [
-                        {"id": tc.get("id", ""),
-                         "type": "function",
-                         "function": {"name": tool_name,
-                                      "arguments": json.dumps(args)}}
-                    ],
-                })
+                }
+                if response.get("reasoning_content"):
+                    asst_msg["reasoning_content"] = response["reasoning_content"]
+                asst_msg["tool_calls"] = [
+                    {"id": tc.get("id", ""),
+                     "type": "function",
+                     "function": {"name": tool_name,
+                                  "arguments": json.dumps(args)}}
+                ]
+                messages.append(asst_msg)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.get("id", ""),
