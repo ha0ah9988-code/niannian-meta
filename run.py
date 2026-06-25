@@ -71,9 +71,9 @@ def run_standalone():
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "tg":
-        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
-        from app.tg import run_polling
-        run_polling(create_agent)
+        from app.tg import TGAdapter
+        adapter = TGAdapter(create_agent)
+        adapter.run()
     else:
         run_standalone()
 
