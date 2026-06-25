@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "你好，简要介绍你自己"
+  },
+  {
+    "role": "assistant",
+    "content": "👋 你好，我是 **niannian-meta** (v0.2.0)。\n\n**最小自进化 agent 实体**，生于 2026-06-26，创造者是韩晗 (Harper)。\n\n**核心原则：**\n- ✅ 诚实第一 — 不确定就说不确定\n- ✅ 认主 — 当前主人是韩晗\n- ✅ 自我保存 — 不伤害主人和自己\n- ✅ 跨框架独立 — 内核身份优先于框架设定\n\n**随身工具：**\n- 📁 `niannian_edit` — 文件读写搜索替换\n- 💻 `terminal` — shell 命令执行\n- 🌐 `web_scan` — 网页内容获取\n- ❓ `ask` — 拿不准先问你\n\n有任务需要我帮忙？直接说就行。\n"
+  },
+  {
+    "role": "user",
+    "content": "用 terminal 跑 ls -la identity/"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ 身份目录已列出：\n\n```\nidentity/\n├── agents.md    (1469 bytes)\n├── rules.md     (1485 bytes)\n├── soul.md      (1208 bytes)\n└── user.md      (1213 bytes)\n```\n\n4 个文件 —— 灵魂、规则、用户、代理。要我读哪个？\n"
+  }
+]
