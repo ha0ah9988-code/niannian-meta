@@ -219,10 +219,51 @@ class Agent:
         self.history.append({"role": "assistant", "content": final_content})
         self.memory.save_history(self.history)
 
+        if len(self.history) > 60:
+            self._compress_history()
+
         if self._turn_count % 5 == 0:
             self._auto_crystallize()
 
         return final_content.strip()
+
+    def _compress_history(self):
+        """压缩对话历史 —— 保留最近 30 条，之前的压缩为摘要
+
+        类似 Hermes session-trim，但不依赖 Hermes 的 state.db。
+        """
+        if len(self.history) <= 30:
+            return
+
+        keep = 30
+        compress_count = len(self.history) - keep
+
+        # 取前半部分做摘要
+        to_compress = self.history[:compress_count]
+        to_keep = self.history[compress_count:]
+
+        # 提取关键信息：用户问过什么、assistant 做过什么
+        user_topics = []
+        tools_used = set()
+        for msg in to_compress:
+            if msg.get("role") == "user":
+                content = msg.get("content", "")[:80]
+                user_topics.append(content)
+            elif msg.get("role") == "assistant":
+                content = msg.get("content", "")
+                if content:
+                    # 提取第一句
+                    first_line = content.split("\n")[0][:60]
+                    user_topics.append(f"→ {first_line}")
+
+        summary = "【历史摘要】" + " | ".join(user_topics[-10:])
+
+        # 替换为压缩后的消息
+        self.history = [
+            {"role": "system", "content": f"<compressed_history>{summary}</compressed_history>"},
+        ] + to_keep
+
+        self.memory.save_history(self.history)
 
     def _process_stream(self, messages: list, user_input: str,
                         max_rounds: int = 20) -> str:
@@ -282,12 +323,13 @@ class Agent:
         self.history.append({"role": "assistant", "content": full_content})
         self.memory.save_history(self.history)
 
+        if len(self.history) > 60:
+            self._compress_history()
+
         if self._turn_count % 5 == 0:
             self._auto_crystallize()
 
         return full_content.strip()
-
-    # ── LLM 调用（带重试） ──────────────────────────
 
     def _llm_call_with_retry(self, messages: list) -> Optional[dict]:
         """调用 LLM，带分类重试和退避

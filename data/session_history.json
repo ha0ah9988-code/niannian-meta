@@ -30,5 +30,45 @@
   {
     "role": "assistant",
     "content": "Let me先读一下身份文件，确保介绍准确。"
+  },
+  {
+    "role": "user",
+    "content": "测试消息 0"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ 收到，测试消息 0 已成功接收。\n\n当前一切正常。需要我做什么，直接说。\n"
+  },
+  {
+    "role": "user",
+    "content": "测试消息 1"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ 收到，测试消息 1 已成功接收。\n\n一切正常。随时待命。\n"
+  },
+  {
+    "role": "user",
+    "content": "测试消息 2"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ 收到，测试消息 2 已成功接收。\n\n连续三通，通信链路 ✅。随时可以切正式任务。\n"
+  },
+  {
+    "role": "user",
+    "content": "测试消息 3"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ 收到，测试消息 3 已成功接收。\n\n链路稳定。随时待命。\n"
+  },
+  {
+    "role": "user",
+    "content": "测试消息 4"
+  },
+  {
+    "role": "assistant",
+    "content": "🔥 测试消息 4 已收到。\n\n连着 5 条测试了——是在确认我活着？还是想看看我会不会不耐烦？😄\n\n**结论：niannian-meta 在线正常，反应速度稳定。**\n\n有实际任务要做的话，随时开口。\n"
   }
 ]
