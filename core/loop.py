@@ -138,6 +138,7 @@ class Agent:
         # 回调（适配器可接管）
         self.on_tool_progress = lambda name, args: None
         self.on_ask = lambda q: input(f"\n[确认] {q}\n> ").strip()
+        self.on_stream = None  # Callable[[str], None], TG 模式时设置
 
         # 身份（惰性加载）
         self._rules = None
@@ -169,17 +170,21 @@ class Agent:
         if not self._budget.consume():
             return "迭代预算已耗尽，请开始新会话 (/clear)"
 
-        # 构造消息
         messages = self._build_messages(user_input, context)
 
-        # LLM 循环
+        # 尝试流式输出（如果提供了 on_stream 回调）
         final_content = ""
         tool_rounds = 0
         max_tool_rounds = 20
+        use_stream = hasattr(self, 'on_stream') and self.on_stream is not None
 
+        if use_stream:
+            # 流式路径
+            return self._process_stream(messages, user_input, max_tool_rounds)
+
+        # 非流式路径（原逻辑）
         while tool_rounds < max_tool_rounds:
             tool_rounds += 1
-
             response = self._llm_call_with_retry(messages)
             if response is None:
                 final_content += "\n[LLM 调用失败，请重试]"
@@ -194,11 +199,8 @@ class Agent:
             if not tool_calls:
                 break
 
-            # 执行工具
             for tc in tool_calls:
                 result = self._execute_tool(tc["name"], tc.get("arguments", {}))
-
-                # 注入工具结果
                 asst = {"role": "assistant",
                        "content": content if content else None}
                 if response.get("reasoning_content"):
@@ -213,16 +215,77 @@ class Agent:
                                 "tool_call_id": tc.get("id", ""),
                                 "content": str(result)})
 
-        # 持久化
         self.history.append({"role": "user", "content": user_input})
         self.history.append({"role": "assistant", "content": final_content})
         self.memory.save_history(self.history)
 
-        # 自动结晶
         if self._turn_count % 5 == 0:
             self._auto_crystallize()
 
         return final_content.strip()
+
+    def _process_stream(self, messages: list, user_input: str,
+                        max_rounds: int = 20) -> str:
+        """流式处理路径 —— 实时推送文本块到 on_stream 回调"""
+        full_content = ""
+        tool_rounds = 0
+
+        while tool_rounds < max_rounds:
+            tool_rounds += 1
+
+            # 累积流式文本
+            accumulated = ""
+            try:
+                for chunk in self.provider.chat_stream(
+                    messages=messages,
+                    tools=self.tools.to_openai_tools(),
+                ):
+                    accumulated += chunk
+                    self.on_stream(chunk)
+            except Exception as e:
+                self.on_stream(f"\n\n[错误: {e}]")
+                break
+
+            full_content += accumulated
+
+            if tool_rounds >= max_rounds:
+                break
+
+            # 尝试让 LLM 决定下一步（非流式单轮）
+            response = self._llm_call_with_retry(messages)
+            if response is None:
+                break
+
+            tool_calls = response.get("tool_calls", [])
+            if not tool_calls:
+                break
+
+            # 执行工具
+            for tc in tool_calls:
+                result = self._execute_tool(tc["name"], tc.get("arguments", {}))
+                asst = {"role": "assistant",
+                       "content": accumulated if accumulated else None}
+                if response.get("reasoning_content"):
+                    asst["reasoning_content"] = response["reasoning_content"]
+                asst["tool_calls"] = [
+                    {"id": tc.get("id", ""), "type": "function",
+                     "function": {"name": tc["name"],
+                                  "arguments": json.dumps(tc["arguments"])}}
+                ]
+                messages.append(asst)
+                messages.append({"role": "tool",
+                                "tool_call_id": tc.get("id", ""),
+                                "content": str(result)})
+                self.on_stream(f"\n🛠️ {tc['name']}: {str(result)[:100]}")
+
+        self.history.append({"role": "user", "content": user_input})
+        self.history.append({"role": "assistant", "content": full_content})
+        self.memory.save_history(self.history)
+
+        if self._turn_count % 5 == 0:
+            self._auto_crystallize()
+
+        return full_content.strip()
 
     # ── LLM 调用（带重试） ──────────────────────────
 

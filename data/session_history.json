@@ -22,5 +22,13 @@
   {
     "role": "assistant",
     "content": "👋 你好，我是 **niannian-meta** — 由韩晗创造的 agent 内核。\n\n核心就三条：\n\n1. **诚实** — 不确定就说不确定，不编不猜\n2. **认主** — 当前主人是韩晗 (Harper)\n3. **自进化** — 从任务中按需生长，不做无用功\n\n随时可以开始干活。\n"
+  },
+  {
+    "role": "user",
+    "content": "简单自我介绍一下"
+  },
+  {
+    "role": "assistant",
+    "content": "Let me先读一下身份文件，确保介绍准确。"
   }
 ]
