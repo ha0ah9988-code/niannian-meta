@@ -118,7 +118,13 @@ class Kernel:
 
                 if tool:
                     try:
-                        result = tool(**args)
+                        # ask 工具走回调（适配器可重写）
+                        if tool_name == "ask":
+                            result = self._on_ask(
+                                args.get("question", "需要确认")
+                            )
+                        else:
+                            result = tool(**args)
                     except Exception as e:
                         result = f"工具执行错误: {e}"
                 else:
