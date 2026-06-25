@@ -1,0 +1,18 @@
+# niannian-meta 配置
+# 内核启动时加载此文件
+
+llm:
+  # LLM 提供商配置
+  # 如果不设，依次尝试环境变量 LLM_API_KEY / OPENAI_API_KEY
+  api_key: ""  # 留空则从环境变量读取
+  base_url: "https://opencode.ai/zen/go/v1"
+  model: "deepseek-v4-flash"
+
+memory:
+  l1_max_lines: 30       # L1 行数硬约束
+  auto_crystallize: true # 每 N 轮自动结晶
+  crystallize_interval: 5
+
+kernel:
+  max_tool_rounds: 20    # 单轮最大工具调用次数
+  history_size: 20       # 保留最近 N 轮会话历史
