@@ -12,6 +12,7 @@ from typing import Optional
 from core.providers.base import BaseProvider, ProviderError
 from core.tools import ToolRegistry
 from evolution.memory import Memory
+from evolution.learn import learn_from_turn
 
 
 # ── 错误分类 ─────────────────────────────────────────
@@ -224,6 +225,9 @@ class Agent:
 
         if self._turn_count % 5 == 0:
             self._auto_crystallize()
+
+        # 自动学习检测
+        learn_from_turn(self, user_input, final_content)
 
         return final_content.strip()
 
@@ -459,6 +463,12 @@ class Agent:
             self.history.clear()
             self._turn_count = 0
             return "会话已清空"
+        if c == "/learn":
+            from evolution.learn import extract_from_conversation, list_skills
+            name = extract_from_conversation(self.history[-20:], self)
+            if name:
+                return f"✅ 已提取技能: {name}\n可用: data/skills/{name}.md"
+            return "暂无值得提取的技能"
         if c.startswith("/agent"):
             return self.agents
         if c.startswith("/memory"):

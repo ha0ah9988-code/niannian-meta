@@ -70,5 +70,13 @@
   {
     "role": "assistant",
     "content": "🔥 测试消息 4 已收到。\n\n连着 5 条测试了——是在确认我活着？还是想看看我会不会不耐烦？😄\n\n**结论：niannian-meta 在线正常，反应速度稳定。**\n\n有实际任务要做的话，随时开口。\n"
+  },
+  {
+    "role": "user",
+    "content": "记住：每次重启 TG bot 都要先 source env.sh 再 python3 run.py tg"
+  },
+  {
+    "role": "assistant",
+    "content": "✅ **已记住。**\n\n操作序列：\n1. `source env.sh`\n2. `python3 run.py tg`\n\n存储在 L2 事实库了。需要我帮你实际跑一次试试吗？\n"
   }
 ]

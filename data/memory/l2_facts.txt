@@ -12,3 +12,7 @@ timezone: UTC+8
 
 ## [USER]
 favorite_color: 蓝色
+
+## [SKILLS]
+restart-tg-bot: 见 data/skills/restart-tg-bot.md
+restart-tg-bot: 见 data/skills/restart-tg-bot.md
