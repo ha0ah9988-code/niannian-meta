@@ -38,6 +38,17 @@ def tg_send(text: str, chat_id: str = CHAT_ID) -> bool:
         return False
 
 
+def tg_typing(chat_id: str = CHAT_ID):
+    """发送 typing 状态，让用户知道 bot 正在处理"""
+    try:
+        data = urllib.parse.urlencode({"chat_id": chat_id, "action": "typing"}).encode()
+        req = urllib.request.Request(f"{API_BASE}/sendChatAction", data=data,
+                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
+        urllib.request.urlopen(req, timeout=5)
+    except:
+        pass
+
+
 def get_updates(offset: int = 0, timeout: int = 30) -> list:
     """获取未处理的消息"""
     url = f"{API_BASE}/getUpdates?timeout={timeout}&offset={offset}"
@@ -63,6 +74,7 @@ class TGAdapter:
 
     def _tg_ask(self, question: str) -> str:
         """TG 版 ask —— 发问题到主人对话，等待回复"""
+        tg_typing()  # 先取消 typing
         tg_send(f"❓ {question}\n\n（在 TG 回复即可）")
         self._asking = True
         print(f"[TG ask] 等待回答: {question[:60]}")
@@ -110,6 +122,7 @@ class TGAdapter:
                         continue
 
                     print(f"[TG] << {text[:80]}")
+                    tg_typing(chat_id)  # 显示 typing... 状态
                     if text.startswith("/"):
                         response = self.kernel.system_command(text)
                     else:
