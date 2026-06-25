@@ -1,6 +1,6 @@
-"""TG 适配器 —— 通过 Telegram 与内核交互。
+"""TG 适配器 —— 通过 Telegram 与 agent 交互。
 
-支持：消息收发、ask 工具走 TG 不弹终端。
+支持 typing 状态提示、工具进度通知、ask 走 TG 不弹终端。
 """
 
 import os
@@ -10,79 +10,66 @@ import json
 import urllib.request
 import urllib.parse
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from kernel import Kernel
-
 BOT_TOKEN = "8769651388:AAHb5c4YClHM6WOr04EFUw0PLMnFwTJZpnM"
 CHAT_ID = "8391869847"
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 
 def tg_send(text: str, chat_id: str = CHAT_ID) -> bool:
-    """发送消息到 TG"""
     if not text:
         return True
     if len(text) > 4000:
         text = text[:3997] + "..."
-
     data = urllib.parse.urlencode({
         "chat_id": chat_id, "text": text, "parse_mode": "HTML",
     }).encode()
     try:
         req = urllib.request.Request(f"{API_BASE}/sendMessage", data=data,
-                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
-        resp = urllib.request.urlopen(req, timeout=15)
-        return json.loads(resp.read()).get("ok", False)
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
+        return json.loads(urllib.request.urlopen(req, timeout=15).read()).get("ok", False)
     except Exception as e:
-        print(f"[TG send error] {e}")
+        print(f"[TG send] {e}")
         return False
 
 
 def tg_typing(chat_id: str = CHAT_ID):
-    """发送 typing 状态，让用户知道 bot 正在处理"""
     try:
         data = urllib.parse.urlencode({"chat_id": chat_id, "action": "typing"}).encode()
         req = urllib.request.Request(f"{API_BASE}/sendChatAction", data=data,
-                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
         urllib.request.urlopen(req, timeout=5)
     except:
         pass
 
 
 def get_updates(offset: int = 0, timeout: int = 30) -> list:
-    """获取未处理的消息"""
     url = f"{API_BASE}/getUpdates?timeout={timeout}&offset={offset}"
     try:
-        req = urllib.request.Request(url)
-        resp = urllib.request.urlopen(req, timeout=timeout + 5)
-        return json.loads(resp.read()).get("result", [])
+        return json.loads(urllib.request.urlopen(urllib.request.Request(url), timeout=timeout+5).read()).get("result", [])
     except Exception as e:
-        print(f"[TG poll error] {e}")
+        print(f"[TG poll] {e}")
         return []
 
 
 class TGAdapter:
-    """TG 适配器 —— 持有内核实例并处理消息循环"""
+    """TG 适配器 —— 持有 agent 实例并处理消息循环"""
 
-    def __init__(self):
-        self.kernel = Kernel()
+    def __init__(self, agent_factory):
+        from core.loop import Agent
+        self.agent = agent_factory()
+
+        # 接管回调
+        self.agent.on_ask = self._tg_ask
+        self.agent.on_tool_progress = self._tg_tool_progress
         self.update_offset = 0
-
-        # 接管内核的 ask 工具，走 TG 不弹终端
-        self.kernel._on_ask = self._tg_ask
-        # 接管工具进度回调，TG 实时推送
-        self.kernel._on_tool_progress = self._tg_tool_progress
         self._asking = False
         self._last_tool_time = 0
 
     def _tg_ask(self, question: str) -> str:
-        """TG 版 ask —— 发问题到主人对话，等待回复"""
-        tg_typing()  # 先取消 typing
         tg_send(f"❓ {question}\n\n（在 TG 回复即可）")
         self._asking = True
-        print(f"[TG ask] 等待回答: {question[:60]}")
+        print(f"[TG ask] 等待回答...")
 
-        # 短轮询等待主人回复
         while self._asking:
             updates = get_updates(self.update_offset, timeout=10)
             for update in updates:
@@ -94,70 +81,54 @@ class TGAdapter:
                 text = msg.get("text", "").strip()
                 if chat_id == CHAT_ID and text:
                     self._asking = False
-                    print(f"[TG ask] 收到回复: {text[:60]}")
                     return text
             time.sleep(0.5)
-
         return ""
 
     def _tg_tool_progress(self, tool_name: str, args: dict):
-        """TG 版工具进度 —— 推送简短工具通知"""
-        # 防刷：1 秒内不重复发
         now = time.time()
         if now - self._last_tool_time < 1.0:
             return
         self._last_tool_time = now
 
-        # 取关键参数展示
         preview = ""
         if tool_name == "terminal":
-            cmd = args.get("command", "")
-            preview = cmd[:60]
+            preview = args.get("command", "")[:60]
         elif tool_name == "web_scan":
-            url = args.get("url", "")
-            preview = url[:60]
+            preview = args.get("url", "")[:60]
         elif tool_name == "niannian_edit":
-            f = args.get("file", "")
-            m = args.get("mode", "")
-            preview = f"{m} {f}"[:60]
+            preview = f"{args.get('mode','')} {args.get('file','')}"[:60]
 
         brief = f"🛠️ {tool_name}"
         if preview:
             brief += f": {preview}"
-
         tg_send(brief)
-        print(f"[TG tool] {brief}")
 
     def run(self):
-        """主 polling 循环"""
-        tg_send("🧬 niannian-meta 内核已启动 v0.1.0")
+        tg_send("🧬 niannian-meta v0.2.0 已启动")
         print("[TG adapter] 开始 polling...")
 
         while True:
             try:
                 updates = get_updates(self.update_offset)
-
                 for update in updates:
                     self.update_offset = update["update_id"] + 1
                     if "message" not in update:
                         continue
-
                     msg = update["message"]
                     chat_id = str(msg.get("chat", {}).get("id", ""))
                     text = msg.get("text", "").strip()
-
-                    if not text:
-                        continue
-                    if chat_id != CHAT_ID:
-                        print(f"[忽略] 来自 {chat_id} 的消息")
+                    if not text or chat_id != CHAT_ID:
                         continue
 
                     print(f"[TG] << {text[:80]}")
-                    tg_typing(chat_id)  # 显示 typing... 状态
+                    tg_typing(chat_id)
+
                     if text.startswith("/"):
-                        response = self.kernel.system_command(text)
+                        response = self.agent.system_command(text)
                     else:
-                        response = self.kernel.process(text)
+                        response = self.agent.process(text)
+
                     print(f"[TG] >> {response[:80]}")
                     tg_send(response, chat_id)
 
@@ -165,15 +136,18 @@ class TGAdapter:
                 print("\n[TG adapter] 停止")
                 break
             except Exception as e:
-                print(f"[TG adapter] 循环错误: {e}")
+                print(f"[TG adapter] 错误: {e}")
                 time.sleep(5)
 
 
-def run_polling():
-    TGAdapter().run()
+def run_polling(agent_factory=None):
+    """启动 TG polling
 
-
-if __name__ == "__main__":
-    print("niannian-meta TG adapter")
-    print("按 Ctrl+C 停止")
-    run_polling()
+    Args:
+        agent_factory: 创建 agent 实例的工厂函数
+    """
+    if agent_factory is None:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        from run import create_agent
+        agent_factory = create_agent
+    TGAdapter(agent_factory).run()
