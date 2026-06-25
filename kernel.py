@@ -30,7 +30,7 @@ class Kernel:
 
         # ── 组件 ──
         if llm is None:
-            llm = create_llm(extra_body={'reasoning_effort': 'max'})
+            llm = create_llm()
         self.llm = llm
         self.tools = ToolRegistry()
         self.memory = Memory()
