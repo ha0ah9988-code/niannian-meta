@@ -57,6 +57,16 @@ class OpenAICompatibleLLM(BaseLLM):
         """调用 LLM 并返回响应"""
         import httpx
 
+        # httpx 不自动读取 HTTP_PROXY 环境变量，需要手动配置
+        proxy_url = (os.environ.get("HTTPS_PROXY")
+                     or os.environ.get("HTTP_PROXY")
+                     or os.environ.get("https_proxy")
+                     or os.environ.get("http_proxy")
+                     or None)
+        client_kwargs = {"timeout": 120}
+        if proxy_url:
+            client_kwargs["proxy"] = proxy_url
+
         body = {
             "model": self.model,
             "messages": messages,
@@ -67,17 +77,17 @@ class OpenAICompatibleLLM(BaseLLM):
             body["tools"] = tools
 
         try:
-            resp = httpx.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=body,
-                timeout=120,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+            with httpx.Client(**client_kwargs) as client:
+                resp = client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
+                )
+                resp.raise_for_status()
+                data = resp.json()
         except Exception as e:
             raise LLMError(f"LLM call failed: {e}")
 
