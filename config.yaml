@@ -16,3 +16,18 @@ memory:
 kernel:
   max_tool_rounds: 20    # 单轮最大工具调用次数
   history_size: 20       # 保留最近 N 轮会话历史
+
+compression:
+  # 上下文自动压缩（基于 Hermes context_compressor）
+  enabled: true
+  threshold_percent: 0.75    # 上下文用量超过 75% 时触发
+  protect_first_n: 3         # 保护前 N 条非 system 消息
+  protect_last_n: 8          # 保护后 N 条消息
+  context_length: 128000     # 模型上下文窗口大小
+  summary_max_tokens: 8000   # 摘要最大 token 数
+
+state:
+  # state.db 持久化存储
+  source: "standalone"       # 会话来源标识
+  # 外部压缩脚本（可选）
+  # session_trim_script: "~/niannian/repo/shared/tools/session-trim-v2.py"

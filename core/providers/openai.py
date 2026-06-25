@@ -85,7 +85,14 @@ class OpenAIProvider(BaseProvider):
 
     def chat_stream(self, messages: list, tools: list = None,
                     max_tokens: int = 4096):
-        """流式对话 —— yield 文本块"""
+        """流式对话 —— yield 事件 dict
+
+        事件类型：
+          {"type": "content", "data": "文本块"}
+          {"type": "tool_calls", "data": [tool_call_dict, ...]}
+          {"type": "usage", "data": {"prompt_tokens": N, ...}}
+          {"type": "done", "data": {}}
+        """
         body = {
             "model": self.model,
             "messages": messages,
@@ -107,6 +114,7 @@ class OpenAIProvider(BaseProvider):
                     self._raise_error(resp)
                     return
 
+                buffer = {}
                 for line in resp.iter_lines():
                     if not line:
                         continue
@@ -119,10 +127,61 @@ class OpenAIProvider(BaseProvider):
                         except json.JSONDecodeError:
                             continue
 
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        # Usage info (final chunk)
+                        if chunk.get("usage"):
+                            yield {"type": "usage", "data": chunk["usage"]}
+
+                        choices = chunk.get("choices", [])
+                        if not choices:
+                            continue
+
+                        delta = choices[0].get("delta", {})
+
+                        # Content text
                         content = delta.get("content", "")
                         if content:
-                            yield content
+                            yield {"type": "content", "data": content}
+
+                        # Tool calls (streaming deltas — need assembly)
+                        if "tool_calls" in delta:
+                            for tc_delta in delta["tool_calls"]:
+                                idx = tc_delta.get("index", 0)
+                                if idx not in buffer:
+                                    buffer[idx] = {
+                                        "id": "",
+                                        "function": {"name": "", "arguments": ""},
+                                    }
+                                tcc = buffer[idx]
+                                if tc_delta.get("id"):
+                                    tcc["id"] = tc_delta["id"]
+                                if "function" in tc_delta:
+                                    fn = tc_delta["function"]
+                                    if fn.get("name"):
+                                        tcc["function"]["name"] = fn["name"]
+                                    if fn.get("arguments"):
+                                        tcc["function"]["arguments"] += fn["arguments"]
+
+                # Assemble complete tool calls
+                if buffer:
+                    calls = []
+                    for idx in sorted(buffer):
+                        tc = buffer[idx]
+                        args_str = tc["function"]["arguments"]
+                        try:
+                            args = json.loads(args_str) if args_str else {}
+                        except json.JSONDecodeError:
+                            args = {"_raw": args_str}
+                        calls.append({
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["function"]["name"],
+                                "arguments": json.dumps(args),
+                            },
+                        })
+                    yield {"type": "tool_calls", "data": calls}
+
+                yield {"type": "done", "data": {}}
 
     def _headers(self) -> dict:
         return {

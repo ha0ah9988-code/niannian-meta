@@ -1,0 +1,14 @@
+# niannian-meta
+# 用法: pip install -r requirements.txt
+
+# 核心
+pyyaml>=6.0          # config.yaml
+
+# HTTP
+httpx>=0.27          # LLM provider 通信
+
+# 数据库
+# SQLite3 内置，无需额外安装
+
+# 可选：evolution
+# （依赖按需安装）

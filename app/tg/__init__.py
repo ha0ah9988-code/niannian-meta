@@ -1,15 +1,18 @@
-"""TG Gateway —— 完整版
+"""TG Gateway —— 适配器（接入 state.db + 压缩引擎）
 
-组装 poller / session / sender / media / commands 为一套完整的
-消息处理管道，对外暴露 TGAdapter 类。
+职责：
+  1. 接收消息（poller）
+  2. 分派消息到 agent（agent 通过 state.db 自行持久化）
+  3. 发送回复（sender）
 """
 
 import logging
+import signal
+import sys
 from typing import Callable
 
 from .api import send_message, send_typing, get_updates, CHAT_ID
 from .poller import Poller
-from .session import SessionManager
 from .sender import send, send_progress
 from . import commands as cmd_handler
 
@@ -19,25 +22,27 @@ logger = logging.getLogger("tg")
 class TGAdapter:
     """TG Gateway 适配器
 
-    职责：
-    1. 接收消息（poller）
-    2. 管理会话（session manager）
-    3. 分派消息到 agent
-    4. 发送回复（sender）
+    Agent 使用 state.db 管理会话持久化 + 上下文压缩，
+    适配器只负责消息转发和回调适配。
     """
 
     def __init__(self, agent_factory: Callable, chat_id: str = CHAT_ID):
         self.chat_id = chat_id
         self.agent = agent_factory()
-        self.sessions = SessionManager()
+        self.agent.state_source = "tg"  # 标记来源为 TG
         self.poller = Poller(offset_file="data/tg_offset.txt")
 
         # 接管 agent 回调
         self.agent.on_ask = self._on_ask
         self.agent.on_tool_progress = self._on_tool_progress
+        self.agent.on_compression_status = self._on_compression_notify
 
         # 注册消息处理器
         self.poller.on_message(self._on_message)
+
+        # 注册优雅关闭
+        signal.signal(signal.SIGINT, self._shutdown)
+        signal.signal(signal.SIGTERM, self._shutdown)
 
     # ── 消息处理管道 ────────────────────────────────
 
@@ -56,10 +61,7 @@ class TGAdapter:
         # 显示 typing
         send_typing(chat_id)
 
-        # 获取/创建会话
-        session = self.sessions.get_or_create(chat_id)
-
-        # 处理命令或消息
+        # 处理命令或消息（agent 通过 state.db 自动持久化）
         if text.startswith("/"):
             response = cmd_handler.handle(text, self.agent)
         else:
@@ -69,9 +71,6 @@ class TGAdapter:
         if response:
             send(response, chat_id)
             logger.info(f">> {response[:80]}")
-
-        # 持久化会话
-        self.sessions.save(session)
 
     # ── 回调 ────────────────────────────────────────
 
@@ -116,6 +115,10 @@ class TGAdapter:
 
         send_progress(tool_name, preview, self.chat_id)
 
+    def _on_compression_notify(self, msg: str):
+        """压缩/归档状态通知 → TG 进度消息"""
+        send(f"🔄 {msg}", self.chat_id)
+
     # ── 生命周期 ────────────────────────────────────
 
     def run(self):
@@ -125,9 +128,29 @@ class TGAdapter:
         try:
             self.poller.run()
         finally:
-            self.sessions.save_all()
+            self._do_shutdown()
 
     def stop(self):
         """停止 gateway"""
         self.poller.stop()
-        self.sessions.save_all()
+        self._do_shutdown()
+
+    def _shutdown(self, signum=None, frame=None):
+        """signal handler 优雅关闭"""
+        logger.info("收到关闭信号")
+        self.poller.stop()
+
+    def _do_shutdown(self):
+        """关闭时的持久化操作"""
+        try:
+            # 归档 + 结束会话
+            result = self.agent.state.archive_history(
+                keep=50,
+                source=getattr(self.agent, 'state_source', 'tg'),
+            )
+            if result["archived"] > 0:
+                logger.info(f"已归档 {result['archived']} 条到 sessions.db")
+            self.agent.state.end_session("gateway_stop")
+            logger.info("state 会话已结束")
+        except Exception as e:
+            logger.warning(f"关闭异常: {e}")
