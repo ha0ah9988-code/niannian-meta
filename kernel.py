@@ -124,6 +124,8 @@ class Kernel:
                                 args.get("question", "需要确认")
                             )
                         else:
+                            # 通知适配器：工具正在执行
+                            self._on_tool_progress(tool_name, args)
                             result = tool(**args)
                     except Exception as e:
                         result = f"工具执行错误: {e}"
@@ -168,6 +170,19 @@ class Kernel:
             self._auto_crystallize()
 
         return final_content.strip()
+
+    # ─── ask 工具回调（适配器可重写） ────────────────
+
+    def _on_ask(self, question: str) -> str:
+        """向用户提问。默认用 stdin/stdout。"""
+        print(f"\n[内核需要确认] {question}")
+        return input("> ").strip()
+
+    # ─── 工具进度回调（适配器可重写） ─────────────────
+
+    def _on_tool_progress(self, tool_name: str, args: dict):
+        """工具正在执行时回调。适配器可覆盖此方法实时推送进度。"""
+        pass
 
     # ─── System Prompt 构造 ───────────────────────────
 

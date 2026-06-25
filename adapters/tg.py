@@ -70,7 +70,10 @@ class TGAdapter:
 
         # 接管内核的 ask 工具，走 TG 不弹终端
         self.kernel._on_ask = self._tg_ask
+        # 接管工具进度回调，TG 实时推送
+        self.kernel._on_tool_progress = self._tg_tool_progress
         self._asking = False
+        self._last_tool_time = 0
 
     def _tg_ask(self, question: str) -> str:
         """TG 版 ask —— 发问题到主人对话，等待回复"""
@@ -96,6 +99,34 @@ class TGAdapter:
             time.sleep(0.5)
 
         return ""
+
+    def _tg_tool_progress(self, tool_name: str, args: dict):
+        """TG 版工具进度 —— 推送简短工具通知"""
+        # 防刷：1 秒内不重复发
+        now = time.time()
+        if now - self._last_tool_time < 1.0:
+            return
+        self._last_tool_time = now
+
+        # 取关键参数展示
+        preview = ""
+        if tool_name == "terminal":
+            cmd = args.get("command", "")
+            preview = cmd[:60]
+        elif tool_name == "web_scan":
+            url = args.get("url", "")
+            preview = url[:60]
+        elif tool_name == "niannian_edit":
+            f = args.get("file", "")
+            m = args.get("mode", "")
+            preview = f"{m} {f}"[:60]
+
+        brief = f"🛠️ {tool_name}"
+        if preview:
+            brief += f": {preview}"
+
+        tg_send(brief)
+        print(f"[TG tool] {brief}")
 
     def run(self):
         """主 polling 循环"""
