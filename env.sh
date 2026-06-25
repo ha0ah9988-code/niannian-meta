@@ -6,9 +6,5 @@ export LLM_API_KEY="sk-kJFBqTU4hZvG9kmWBo2XknXWb5yxX1hpuV3tBzXhXDHr00wRdOeQAroqp
 export LLM_BASE_URL="https://opencode.ai/zen/go/v1"
 export LLM_MODEL="deepseek-v4-flash"
 
-# 代理（如需走代理访问 API，取消注释并改端口）
-export HTTP_PROXY="http://127.0.0.1:7890"
-export HTTPS_PROXY="http://127.0.0.1:7890"
-
 echo "✓ niannian-meta 环境已配置"
 echo "  Model: $LLM_MODEL"
