@@ -86,7 +86,9 @@ class OpenAICompatibleLLM(BaseLLM):
                     },
                     json=body,
                 )
-                resp.raise_for_status()
+                if resp.status_code != 200:
+                    detail = resp.text[:500]
+                    raise LLMError(f"HTTP {resp.status_code}: {detail}")
                 data = resp.json()
         except Exception as e:
             raise LLMError(f"LLM call failed: {e}")
