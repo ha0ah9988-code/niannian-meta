@@ -36,7 +36,7 @@ class Kernel:
         self.memory = Memory()
 
         # ── 状态 ──
-        self.history = []  # 当前会话消息历史
+        self.history = self.memory.load_history()  # 加载上次的对话历史
         self._turn_count = 0
         self._task_active = False
         self._tool_results_buffer = []
@@ -159,6 +159,9 @@ class Kernel:
         # 5. 记录历史
         self.history.append({"role": "user", "content": user_input})
         self.history.append({"role": "assistant", "content": final_content})
+
+        # 持久化保存对话历史
+        self.memory.save_history(self.history)
 
         # 6. 触发结晶检查（每隔几轮评估一次）
         if self._turn_count % 5 == 0:

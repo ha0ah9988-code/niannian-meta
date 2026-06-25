@@ -9,3 +9,6 @@ location: VPS (5.15.0-181-generic)
 ## [ENV]
 home: /root/niannian-meta/
 timezone: UTC+8
+
+## [USER]
+favorite_color: 蓝色

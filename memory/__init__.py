@@ -4,9 +4,9 @@
 记忆属于内核自身，无论内核接入什么框架都随身携带。
 """
 
+import json
 import os
 import re
-import json
 import time
 from pathlib import Path
 from typing import Optional
@@ -14,10 +14,11 @@ from typing import Optional
 
 MEMORY_DIR = Path(__file__).parent
 
-L1_FILE = MEMORY_DIR / "l1_index.txt"          # ≤30 行精简索引
-L2_FILE = MEMORY_DIR / "l2_facts.txt"          # 已验证的事实库
-L3_DIR = MEMORY_DIR / "l3_knowledge"            # SOP / 规则 / 技能
-L4_DIR = MEMORY_DIR / "l4_raw_sessions"         # 原始会话历史
+L1_FILE = MEMORY_DIR / "l1_index.txt"
+L2_FILE = MEMORY_DIR / "l2_facts.txt"
+L3_DIR = MEMORY_DIR / "l3_knowledge"
+L4_DIR = MEMORY_DIR / "l4_raw_sessions"
+SESSION_FILE = MEMORY_DIR / "session_history.json"  # 对话历史持久化
 
 
 def _ensure_dirs():
@@ -127,6 +128,29 @@ class Memory:
 
     def clear_working(self):
         self._ephemeral.clear()
+
+    # ─── 会话历史持久化 ──────────────────────────────
+
+    def save_history(self, history: list):
+        """保存对话历史到文件（保留最近 50 轮）"""
+        try:
+            recent = history[-50:] if len(history) > 50 else history
+            SESSION_FILE.write_text(
+                json.dumps(recent, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            print(f"[memory] save_history error: {e}")
+
+    def load_history(self) -> list:
+        """加载上次的对话历史"""
+        try:
+            if SESSION_FILE.exists():
+                data = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+                return data if isinstance(data, list) else []
+        except Exception as e:
+            print(f"[memory] load_history error: {e}")
+        return []
 
     # ─── 结晶机制 ─────────────────────────────────────
 
